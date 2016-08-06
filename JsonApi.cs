@@ -31,7 +31,7 @@ namespace KoKu.JsonApi {
             
             // get type
             writer.WritePropertyName("type");
-            var type = ((Type)value.GetType().GetCustomAttribute(typeof(Type))).Value;
+            var type = ((Type)value.GetType().GetTypeInfo().GetCustomAttribute(typeof(Type))).Value;
             writer.WriteValue(type);
                         
             // get id
@@ -86,7 +86,7 @@ namespace KoKu.JsonApi {
                         
                         // get type
                         writer.WritePropertyName("type");
-                        var itemType = ((Type)item.GetType().GetCustomAttribute(typeof(Type))).Value;
+                        var itemType = ((Type)item.GetType().GetTypeInfo().GetCustomAttribute(typeof(Type))).Value;
                         writer.WriteValue(itemType);
                         
                         // get id
@@ -105,7 +105,7 @@ namespace KoKu.JsonApi {
             return includedObjects;
         }
         
-        public static string fromObject(List<object> value, bool deepInclude = false) {
+        public static string fromObject(IList value, bool deepInclude = false) {
             var includedObjects = new List<object>();            
             var includedObjectsBack = new List<object>();
             var sb = new StringBuilder();
@@ -159,11 +159,15 @@ namespace KoKu.JsonApi {
     
     public class Deserializer {
         private static IEnumerable<System.Type> GetTypesWith<TAttribute>(bool inherit) 
-                              where TAttribute: System.Attribute { 
-             return from a in AppDomain.CurrentDomain.GetAssemblies()
-                  from t in a.GetTypes()
-                  where t.IsDefined(typeof(TAttribute), inherit)
-                  select t;
+                              where TAttribute: System.Attribute {
+            //interate all assemblies ?
+            return Assembly
+                .GetEntryAssembly()
+                .GetTypes()
+                .Where(d =>
+                {
+                    return d.GetTypeInfo().GetCustomAttributes<TAttribute>().Count() > 0;
+                });
         }
         
         private static object ConvertList(List<object> value, System.Type type) {
@@ -183,7 +187,7 @@ namespace KoKu.JsonApi {
             var types = GetTypesWith<Type>(true);
             foreach (var data in token["data"].Children<JObject>()) {
                 var itemType = (string)data["type"];
-                var type = types.First(x => ((Type)x.GetCustomAttribute(typeof(Type))).Value == itemType);
+                var type = types.First(x => ((Type)x.GetTypeInfo().GetCustomAttribute(typeof(Type))).Value == itemType);
                 
                 var item = Activator.CreateInstance(type);
                 list.Add(item);
